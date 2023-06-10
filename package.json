@@ -8,7 +8,13 @@
   "scripts": {
     "c": "npx hardhat compile",
     "t": "npx hardhat test",
-    "bc": "npx hardhat node"
+    "bc": "npx hardhat node",
+    "co": "npx hardhat coverage",
+    "s": "npx solhint contracts/SecretInvest.sol",
+    "su": "surya mdreport SecretInvest.md contracts/SecretInvest.sol",
+    "so": "npx solium -f contracts/SecretInvest.sol",
+    "ds": "npx hardhat run /Users/antonpolenyaka/Documents/GitHub/secret-token/scripts/deploy.ts --network sepolia",
+    "v": "npx hardhat --network sepolia verify --constructor-args ./scripts/arguments.ts "
   },
   "devDependencies": {
     "@ethersproject/abi": "^5.4.7",
@@ -25,14 +31,19 @@
     "@types/node": ">=12.0.0",
     "chai": "^4.2.0",
     "ethers": "^5.4.7",
+    "ethlint": "^1.2.5",
     "hardhat": "^2.14.0",
     "hardhat-gas-reporter": "^1.0.8",
-    "solidity-coverage": "^0.8.0",
+    "solhint": "^3.4.1",
+    "solidity-coverage": "^0.8.2",
+    "solium": "^1.2.5",
+    "surya": "^0.4.6",
     "ts-node": ">=8.0.0",
     "typechain": "^8.1.0",
     "typescript": ">=4.5.0"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^4.8.3"
+    "@openzeppelin/contracts": "^4.8.3",
+    "dotenv": "^16.1.3"
   }
 }

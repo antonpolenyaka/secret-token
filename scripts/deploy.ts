@@ -1,23 +1,10 @@
 import { ethers } from "hardhat";
 
 async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const unlockTime = currentTimestampInSeconds + 60;
-
-  const lockedAmount = ethers.utils.parseEther("0.001");
-
-  const Lock = await ethers.getContractFactory("Lock");
-  const lock = await Lock.deploy(unlockTime, { value: lockedAmount });
-
-  await lock.deployed();
-
-  console.log(
-    `Lock with ${ethers.utils.formatEther(lockedAmount)}ETH and unlock timestamp ${unlockTime} deployed to ${lock.address}`
-  );
-
-  const [, marketingMain, marketingReserve] = await ethers.getSigners();
+  const marketingMain: string = '0x4fed9d1ed02D51BF99505F1DED7CbF4c474BaE9b';
+  const marketingReserve: string = '0x9F94fF7E6Fd7F7637862D8aCc32101fbf4896130';
   const SecretInvest = await ethers.getContractFactory("SecretInvest");
-  const secretInvest = await SecretInvest.deploy(marketingMain.address, marketingReserve.address);
+  const secretInvest = await SecretInvest.deploy(marketingMain, marketingReserve);
   await secretInvest.deployed();
 
   console.log(`SecretToken deployed to ${secretInvest.address}`);

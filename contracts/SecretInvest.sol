@@ -48,8 +48,9 @@ pragma solidity 0.8.20;
  */
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-contract SecretInvest is Ownable {
+contract SecretInvest is Ownable, ReentrancyGuard {
     // Constants
 
     uint256 public FEE_MARKETING_MAIN = 500;
@@ -78,7 +79,7 @@ contract SecretInvest is Ownable {
     // The time of payment
     mapping(address => uint256) public time;
     uint256 public totalValueLocked;
-    uint256 public totalPercents;
+    uint256 public totalDividendsPaid;
     uint256 public totalInvestors;
     uint256 public lastPayment;
     bool public isStarted;
@@ -105,15 +106,6 @@ contract SecretInvest is Ownable {
         _;
     }
 
-    /// Checking the next payout time
-    modifier timeCheck() {
-        require(
-            block.timestamp >= (time[msg.sender] + DIVIDENDS_TIME),
-            "SecretInvest: Too fast payout request. The time of payment has not yet come"
-        );
-        _;
-    }
-
     // Checking if contract is started
     modifier started() {
         require(
@@ -124,26 +116,30 @@ contract SecretInvest is Ownable {
     }
 
     // Private functions
-    function _receivePayment() private isInvestor timeCheck {
-        uint256 multiplier = depositMultiplier();
-        time[msg.sender] = block.timestamp;
-        payable(msg.sender).transfer(multiplier);
+    function _receivePayment() private isInvestor nonReentrant {
+        (uint256 unpaid, uint256 numDaysToPay) = unpaidDividends();
+        require(
+            numDaysToPay > 0,
+            "SecretInvest: Too fast payout request. The time of payment has not yet come"
+        );
+        time[msg.sender] += numDaysToPay * DIVIDENDS_TIME;
+        payable(msg.sender).transfer(unpaid);
 
-        totalPercents += multiplier;
+        totalDividendsPaid += unpaid;
         lastPayment = block.timestamp;
-        emit PayOffDividends(msg.sender, multiplier);
+        emit PayOffDividends(msg.sender, unpaid);
     }
 
     function _calcFeeMarketingMain(
         uint256 value
-    ) private view returns (uint256) {
-        return value * FEE_MARKETING_MAIN / 10000;
+    ) private view returns (uint256 fee) {
+        fee = (value * FEE_MARKETING_MAIN) / 10000;
     }
 
     function _calcFeeMarketingReserve(
         uint256 value
-    ) private view returns (uint256) {
-        return value * FEE_MARKETING_RESERVE / 10000;
+    ) private view returns (uint256 fee) {
+        fee = (value * FEE_MARKETING_RESERVE) / 10000;
     }
 
     function _createDeposit() private started {
@@ -164,13 +160,13 @@ contract SecretInvest is Ownable {
             uint256 reserveMarketingFee = _calcFeeMarketingReserve(msg.value);
             payable(marketingReserve).transfer(reserveMarketingFee);
 
-            if (
-                depositMultiplier() > 0 &&
-                block.timestamp >= (time[msg.sender] * DIVIDENDS_TIME)
-            ) {
+            // Check if we need to pay any dividend now to this wallet
+            (uint256 unpaid, uint256 numDaysToPay) = unpaidDividends();
+            if (unpaid > 0 && numDaysToPay > 0) {
                 _receivePayment();
             }
 
+            // Save new amount to balance of this wallet
             balances[msg.sender] = balances[msg.sender] + msg.value;
             time[msg.sender] = block.timestamp;
 
@@ -181,32 +177,33 @@ contract SecretInvest is Ownable {
         }
     }
 
+    function _numDaysToPay() private view returns (uint256 numDaysToPay) {
+        numDaysToPay = (block.timestamp - time[msg.sender]) / DIVIDENDS_TIME;
+    }
+
     // Public functions
-    function depositMultiplier() public view returns (uint256) {
-        uint256 percent = currentPercent();
-        uint256 rate = (balances[msg.sender] * percent) / 10000;
-        uint256 multiplier = (block.timestamp - time[msg.sender]) /
-            DIVIDENDS_TIME;
-
-        return (rate * multiplier);
+    function claimDividends() public {
+        _receivePayment();
     }
 
-    function isAutorizedPayment() public view returns (bool) {
-        bool result;
-        if (
-            balances[msg.sender] > 0 &&
-            block.timestamp >= (time[msg.sender] + DIVIDENDS_TIME)
-        ) {
-            result = true;
-        } else {
-            result = false;
-        }
-        return result;
+    function unpaidDividends()
+        public
+        view
+        returns (uint256 unpaid, uint256 numDaysToPay)
+    {
+        uint256 dividendPerDay = (balances[msg.sender] * currentPercent()) /
+            10000;
+        numDaysToPay = _numDaysToPay();
+        unpaid = dividendPerDay * numDaysToPay;
     }
 
-    function currentLevel() public view returns (uint256) {
+    function isAutorizedPayment() public view returns (bool result) {
+        result = balances[msg.sender] > 0 && _numDaysToPay() > 0;
+    }
+
+    function currentLevel() public view returns (uint256 level) {
         uint256 contractBalance = address(this).balance;
-        uint256 level;
+        level = 0;
         if (
             contractBalance >= MIN_BALANCE_STEP_1 &&
             contractBalance < MIN_BALANCE_STEP_2
@@ -232,15 +229,13 @@ contract SecretInvest is Ownable {
             contractBalance < MIN_BALANCE_STEP_6
         ) {
             level = 5;
-        } else if (contractBalance >= MIN_BALANCE_STEP_6) {
+        } else {
             level = 6;
         }
-        return level;
     }
 
-    function currentPercent() public view returns (uint256) {
+    function currentPercent() public view returns (uint256 percent) {
         uint256 level = currentLevel();
-        uint256 percent;
         if (level == 1) {
             percent = PERCENT_STEP_1;
         } else if (level == 2) {
@@ -251,10 +246,9 @@ contract SecretInvest is Ownable {
             percent = PERCENT_STEP_4;
         } else if (level == 5) {
             percent = PERCENT_STEP_5;
-        } else if (level == 6) {
+        } else {
             percent = PERCENT_STEP_6;
         }
-        return percent;
     }
 
     function start() public onlyOwner {
@@ -266,3 +260,5 @@ contract SecretInvest is Ownable {
         _createDeposit();
     }
 }
+
+// Test: 0x4fed9d1ed02D51BF99505F1DED7CbF4c474BaE9b, 0x9F94fF7E6Fd7F7637862D8aCc32101fbf4896130
