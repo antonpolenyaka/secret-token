@@ -14,6 +14,7 @@
     "su": "surya mdreport SecretInvest.md contracts/SecretInvest.sol",
     "so": "npx solium -f contracts/SecretInvest.sol",
     "ds": "npx hardhat run /Users/antonpolenyaka/Documents/GitHub/secret-token/scripts/deploy.ts --network sepolia",
+    "dh": "npx hardhat run /Users/antonpolenyaka/Documents/GitHub/secret-token/scripts/deploy.ts --network localhost",
     "v": "npx hardhat --network sepolia verify --constructor-args ./scripts/arguments.ts "
   },
   "devDependencies": {

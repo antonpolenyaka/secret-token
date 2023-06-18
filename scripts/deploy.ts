@@ -7,7 +7,8 @@ async function main() {
   const secretInvest = await SecretInvest.deploy(marketingMain, marketingReserve);
   await secretInvest.deployed();
 
-  console.log(`SecretToken deployed to ${secretInvest.address}`);
+  await secretInvest.start();
+  console.log(`SecretToken deployed to ${secretInvest.address} and started`);
 }
 
 // We recommend this pattern to be able to use async/await everywhere

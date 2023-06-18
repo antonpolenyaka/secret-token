@@ -97,6 +97,7 @@ contract SecretInvest is Ownable, ReentrancyGuard {
     event NewInvestor(address indexed investor, uint256 deposit);
     event PayOffDividends(address indexed investor, uint256 value);
     event NewDeposit(address indexed investor, uint256 value);
+    event Error(address indexed investor, uint256 value);
 
     // Modifiers
 
@@ -255,9 +256,17 @@ contract SecretInvest is Ownable, ReentrancyGuard {
         isStarted = true;
     }
 
+    function balanceOfInvestor(address wallet_) public view returns (uint256 amount) {
+        amount = balances[wallet_];
+    }
+
     /// Function that is launched when transferring money to a contract
     receive() external payable {
         _createDeposit();
+    }
+
+    fallback() external payable {    
+        emit Error(msg.sender, msg.value);
     }
 }
 
